@@ -1,0 +1,47 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Python test
+
+on:
+  push:
+    branches: ["develop"]
+  pull_request:
+    branches: ["develop"]
+
+permissions:
+  contents: read
+env:
+  UV_SYSTEM_PYTHON: 1
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version: ["3.9"]
+        os: [ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Set up Python ${{matrix.python_version}}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{matrix.python_version}}
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Build the package
+        run: |
+          uv pip install build
+          python -m build --sdist
+      - name: Test imports and parsing
+        run: |
+          uv pip install dist/*.tar.gz
+          python -c 'import nomad.cli'
+          python -c 'from nomad.client import ArchiveQuery'
+          python -m nomad.cli parse tests/data/parsers/vasp/vasp.xml
+          uv pip install git+https://github.com/nomad-coe/nomad-parser-example.git@9312f1e
+          python -m exampleparser tests/data/examples/example.out
