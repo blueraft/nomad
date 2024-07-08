@@ -13,33 +13,62 @@ permissions:
   contents: read
 env:
   UV_SYSTEM_PYTHON: 1
+  SETUPTOOLS_SCM_PRETEND_VERSION: 1.3.3
 
 jobs:
-  test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        python_version: ["3.9"]
-        os: [ubuntu-latest]
-
+  build:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.9
+      - name: Install dependencies
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install dependencies
+        run: |
+          uv pip install build
+          python -m build --sdist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nomad_package
+          path: dist/nomad-*.tar.gz
+
+  test:
+    runs-on: ${{ matrix.os }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version: ["3.9"]
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
       - name: Set up Python ${{matrix.python_version}}
         uses: actions/setup-python@v5
         with:
           python-version: ${{matrix.python_version}}
       - name: Install dependencies
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - uses: actions/download-artifact@v4
+        with:
+          name: nomad_package
       - name: Install dependencies
         run: |
-          SETUPTOOLS_SCM_PRETEND_VERSION='1.3.3' uv pip install '.[parsing]' -c requirements.txt
+          pip install nomad-lab-1.3.3.tar.gz
           uv pip install git+https://github.com/nomad-coe/nomad-parser-example.git@9312f1e
-      - name: Test imports and parsing
+      - name: Test imports
         run: |
           python -c 'import nomad.cli'
           python -c 'from nomad.client import ArchiveQuery'
-          python -m nomad.cli parse tests/data/parsers/vasp/vasp.xml
-          python -m exampleparser tests/data/examples/example.out
+      - name: Test parsing
+        if: runner.os == 'Windows'
+        run: |
+          python -m nomad.cli parse tests\data\parsers\vasp\vasp.xml ; python -m exampleparser tests\data\examples\example.out
+      - name: Test parsing
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-14'
+        run: |
+          python -m nomad.cli parse tests/data/parsers/vasp/vasp.xml && python -m exampleparser tests/data/examples/example.out
