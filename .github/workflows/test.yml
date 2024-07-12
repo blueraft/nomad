@@ -59,7 +59,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install nomad-lab-1.3.3.tar.gz
-          uv pip install git+https://github.com/nomad-coe/nomad-parser-example.git@9312f1e
+          uv pip install git+https://github.com/nomad-coe/nomad-parser-example.git@daab4ce
       - name: Test imports
         run: |
           python -c 'import nomad.cli'
