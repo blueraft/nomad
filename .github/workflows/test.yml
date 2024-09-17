@@ -1,0 +1,76 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Python test
+
+on:
+  push:
+    branches: ["develop"]
+  pull_request:
+    branches: ["develop"]
+
+permissions:
+  contents: read
+env:
+  UV_SYSTEM_PYTHON: 1
+  SETUPTOOLS_SCM_PRETEND_VERSION: 1.3.6
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.9
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+      - name: Install dependencies
+        run: |
+          uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nomad_package
+          path: dist/nomad-*.tar.gz
+
+  test:
+    runs-on: ${{ matrix.os }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version: ["3.9"]
+        os: [ubuntu-latest, windows-latest, macos-14]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{matrix.python_version}}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{matrix.python_version}}
+      - name: Install Homebrew libmagic
+        if: runner.os == 'macOS'
+        run: brew install libmagic
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+      - uses: actions/download-artifact@v4
+        with:
+          name: nomad_package
+      - name: Install dependencies
+        run: |
+          uv pip install nomad-lab-1.3.6.tar.gz
+          uv pip install git+https://github.com/nomad-coe/nomad-parser-example.git
+      - name: Test imports
+        run: |
+          python -c 'import nomad.cli'
+          python -c 'from nomad.client import ArchiveQuery'
+      - name: Test parsing
+        if: runner.os == 'Windows'
+        run: |
+          python -m exampleparser tests\data\examples\example.out
+      - name: Test parsing
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-14'
+        run: |
+          python -m exampleparser tests/data/examples/example.out
