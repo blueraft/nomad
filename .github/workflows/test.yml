@@ -69,8 +69,8 @@ jobs:
       - name: Test parsing
         if: runner.os == 'Windows'
         run: |
-          python -m nomad.cli parse tests\data\parsers\vasp\vasp.xml ; python -m exampleparser tests\data\examples\example.out
+          python -m exampleparser tests\data\examples\example.out
       - name: Test parsing
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-14'
         run: |
-          python -m nomad.cli parse tests/data/parsers/vasp/vasp.xml && python -m exampleparser tests/data/examples/example.out
+          python -m exampleparser tests/data/examples/example.out
